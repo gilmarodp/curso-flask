@@ -4,7 +4,10 @@ from models.hotel import HotelModel
 
 class Hoteis(Resource):
     def get(self):
-        return {'hoteis': hoteis}
+        # SELECT * FROM hoteis
+        return {
+            'hoteis': [hotel.json() for hotel in HotelModel.query.all()]
+        }
 
 
 class Hotel(Resource):
@@ -15,10 +18,10 @@ class Hotel(Resource):
     argumentos.add_argument('cidade')
 
     def get(self, hotel_id):
-        hotel = Hotel.find_hotel(hotel_id)
+        hotel = HotelModel.find_hotel(hotel_id)
 
         if hotel is not None:
-            return hotel
+            return hotel.json()
 
         return {'message': 'Hotel not found'}, 404  # not found
 
@@ -37,21 +40,23 @@ class Hotel(Resource):
 
     def put(self, hotel_id):
         dados = Hotel.argumentos.parse_args()
-        hotel = Hotel.find_hotel(hotel_id)
 
-        hotel_objeto = HotelModel(hotel_id, **dados)
-        novo_hotel = hotel_objeto.json()
+        hotel_encontrado = HotelModel.find_hotel(hotel_id)
+        if hotel_encontrado is not None:
+            hotel_encontrado.update_hotel(**dados)
+            hotel_encontrado.save_hotel()
 
-        if hotel is not None:
-            hotel.update(novo_hotel)
-            return novo_hotel, 200  # ok
+            return hotel_encontrado.json(), 200  # ok
 
-        hoteis.append(novo_hotel)
-        return novo_hotel, 201  # created
+        hotel = HotelModel(hotel_id, **dados)
+        hotel.save_hotel()
+        return hotel.json(), 201  # created
 
     def delete(self, hotel_id):
-        global hoteis
+        hotel = HotelModel.find_hotel(hotel_id)
 
-        hoteis = [hotel for hotel in hoteis if hotel['hotel_id'] != hotel_id]
+        if hotel:
+            hotel.delete_hotel()
+            return {'message': 'Hotel deleted.'}, 200
 
-        return {'message': 'Hotel deleted.'}, 200
+        return {'message': 'Hotel not found.'}, 404
